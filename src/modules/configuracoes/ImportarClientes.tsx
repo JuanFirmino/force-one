@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Upload, Check, AlertCircle, X, FileSpreadsheet, Loader } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { supabase } from '../../lib/supabase'
 
 interface Row {
@@ -39,36 +39,43 @@ export function ImportarClientes() {
   const [step, setStep]           = useState<'upload' | 'preview' | 'done'>('upload')
   const fileRef                   = useRef<HTMLInputElement>(null)
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     setFileName(file.name)
-    const reader = new FileReader()
-    reader.onload = e => {
-      const wb = XLSX.read(e.target?.result, { type: 'array', cellDates: true })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const raw: any[] = XLSX.utils.sheet_to_json(ws, { defval: null })
+    const buf = await file.arrayBuffer()
+    const wb  = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf)
+    const ws = wb.worksheets[0]
 
-      const parsed: Row[] = raw.map(r => {
-        // tenta mapear variações de nomes de coluna
-        const get = (...keys: string[]) => {
-          for (const k of keys) {
-            const found = Object.keys(r).find(c => c.toLowerCase().includes(k.toLowerCase()))
-            if (found && r[found] != null) return r[found]
-          }
-          return null
-        }
-        return {
-          name:       String(get('nome', 'name') ?? '').trim(),
-          cpf:        cleanCPF(get('cpf', 'documento', 'doc')),
-          whatsapp:   cleanPhone(get('telefone', 'whatsapp', 'celular', 'fone', 'phone')),
-          email:      get('email', 'e-mail') ? String(get('email', 'e-mail')).trim() : null,
-          birth_date: cleanDate(get('nascimento', 'nasc', 'data', 'birth', 'birthday')),
-        }
-      }).filter(r => r.name && r.cpf.length >= 11)
+    // Primeira linha como cabeçalho
+    const headers: string[] = []
+    ws.getRow(1).eachCell(cell => headers.push(String(cell.value ?? '').toLowerCase()))
 
-      setRows(parsed)
-      setStep('preview')
+    const get = (row: ExcelJS.Row, ...keys: string[]) => {
+      for (const k of keys) {
+        const idx = headers.findIndex(h => h.includes(k))
+        if (idx >= 0) {
+          const v = row.getCell(idx + 1).value
+          if (v != null && v !== '') return v
+        }
+      }
+      return null
     }
-    reader.readAsArrayBuffer(file)
+
+    const parsed: Row[] = []
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return
+      const r: Row = {
+        name:       String(get(row, 'nome', 'name') ?? '').trim(),
+        cpf:        cleanCPF(get(row, 'cpf', 'documento', 'doc')),
+        whatsapp:   cleanPhone(get(row, 'telefone', 'whatsapp', 'celular', 'fone', 'phone')),
+        email:      get(row, 'email', 'e-mail') ? String(get(row, 'email', 'e-mail')).trim() : null,
+        birth_date: cleanDate(get(row, 'nascimento', 'nasc', 'data', 'birth', 'birthday')),
+      }
+      if (r.name && r.cpf.length >= 11) parsed.push(r)
+    })
+
+    setRows(parsed)
+    setStep('preview')
   }
 
   async function handleImport() {

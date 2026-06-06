@@ -4,7 +4,7 @@ import { ImportarClientes } from './ImportarClientes'
 import { ProdutosConfig } from './ProdutosConfig'
 import { UsuariosConfig } from './UsuariosConfig'
 import { dataService } from '../../lib/dataService'
-import { supabase } from '../../lib/supabase'
+import { supabase, verifyPassword as edgeVerify } from '../../lib/supabase'
 import type { AccessType, PaymentMethod, Unit, UnitAccessPrice, UnitPaymentFee } from '../../types'
 
 // ── helpers ────────────────────────────────────────────────
@@ -306,14 +306,9 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
     if (!input.trim()) return
     setLoading(true)
     setError('')
-    const { data, error: err } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'config_password')
-      .single()
+    const result = await edgeVerify({ type: 'config_password', password: input.trim() })
     setLoading(false)
-    if (err || !data) { setError('Erro ao verificar senha.'); return }
-    if (data.value === input.trim()) {
+    if (result.valid) {
       onUnlock()
     } else {
       setError('Senha incorreta.')

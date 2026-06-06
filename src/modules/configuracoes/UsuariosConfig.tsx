@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, Check, X, Eye, EyeOff, User, ShieldCheck, ShieldOff, Lock } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { supabase, verifyPassword as edgeVerify } from '../../lib/supabase'
+
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
 const MODULES = [
   { id: 'acesso',        label: 'Entrada' },
@@ -188,8 +193,8 @@ function SenhaConfiguracoes() {
     if (newPwd !== confirm) { setError('Nova senha e confirmação não coincidem.'); return }
     if (newPwd.length < 4)  { setError('A nova senha deve ter ao menos 4 caracteres.'); return }
     setSaving(true)
-    const { data } = await supabase.from('settings').select('value').eq('key', 'config_password').single()
-    if (!data || data.value !== current.trim()) { setError('Senha atual incorreta.'); setSaving(false); return }
+    const check = await edgeVerify({ type: 'config_password', password: current.trim() })
+    if (!check.valid) { setError('Senha atual incorreta.'); setSaving(false); return }
     await supabase.from('settings').upsert({ key: 'config_password', value: newPwd.trim() })
     setSaving(false); setSuccess(true)
     setCurrent(''); setNewPwd(''); setConfirm('')
@@ -269,14 +274,15 @@ export function UsuariosConfig() {
   function flash() { setSaved(true); setTimeout(() => setSaved(false), 2000) }
 
   async function handleCreate(data: { name: string; login: string; password: string; permissions: Permissions }) {
-    const { error } = await supabase.from('app_users').insert(data)
+    const hashed = await sha256(data.password)
+    const { error } = await supabase.from('app_users').insert({ ...data, password: hashed })
     if (error) throw new Error(error.message.includes('unique') ? 'Esse login já está em uso.' : error.message)
     await load(); setCreating(false); flash()
   }
 
   async function handleUpdate(id: string, data: { name: string; login: string; password: string; permissions: Permissions }) {
     const payload: Record<string, unknown> = { name: data.name, login: data.login, permissions: data.permissions }
-    if (data.password) payload.password = data.password
+    if (data.password) payload.password = await sha256(data.password)
     const { error } = await supabase.from('app_users').update(payload).eq('id', id)
     if (error) throw new Error(error.message.includes('unique') ? 'Esse login já está em uso.' : error.message)
     await load(); setEditingId(null); flash()

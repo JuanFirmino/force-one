@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Search, ShoppingCart, Plus, Minus, Check, User, UserX, RotateCcw, CheckCircle, X, MessageSquare, Lock, Tag, Eye, EyeOff, AlertTriangle } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { supabase, verifyPassword as edgeVerify } from '../../lib/supabase'
 import { useUnitStore } from '../../stores/unitStore'
 import type { Customer, PaymentMethod } from '../../types'
 
@@ -224,9 +224,9 @@ export function VendaModule() {
   async function unlockDiscount() {
     if (!discountPwdInput.trim()) return
     setCheckingPwd(true); setDiscountPwdError('')
-    const { data } = await supabase.from('settings').select('value').eq('key', 'discount_password').single()
+    const result = await edgeVerify({ type: 'discount_password', password: discountPwdInput.trim() })
     setCheckingPwd(false)
-    if (data?.value === discountPwdInput.trim()) {
+    if (result.valid) {
       setDiscountUnlocked(true); setDiscountPwdError('')
     } else {
       setDiscountPwdError('Senha incorreta'); setDiscountPwdInput('')
