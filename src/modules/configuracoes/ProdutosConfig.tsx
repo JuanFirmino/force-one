@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, ToggleLeft, ToggleRight, Barcode } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 interface Category { id: string; name: string; sort_order: number }
-interface Product  { id: string; name: string; price: number; category_id: string | null; active: boolean }
+interface Product  { id: string; name: string; price: number; category_id: string | null; active: boolean; barcode?: string | null }
 
 function currency(v: number) { return Number(v).toFixed(2).replace('.', ',') }
 
@@ -16,7 +16,7 @@ export function ProdutosConfig() {
   // produto form
   const [showForm, setShowForm]     = useState(false)
   const [editingId, setEditingId]   = useState<string | null>(null)
-  const [form, setForm]             = useState({ name: '', price: '', category_id: '' })
+  const [form, setForm]             = useState({ name: '', price: '', category_id: '', barcode: '' })
   const [saving, setSaving]         = useState(false)
 
   // categoria form
@@ -47,6 +47,7 @@ export function ProdutosConfig() {
       name: form.name.trim(),
       price: parseFloat(form.price.replace(',', '.')),
       category_id: form.category_id || null,
+      barcode: form.barcode.trim() || null,
     }
     if (editingId) {
       await supabase.from('products').update(data).eq('id', editingId)
@@ -55,7 +56,7 @@ export function ProdutosConfig() {
       const { data: d } = await supabase.from('products').insert({ ...data, active: true }).select().single()
       if (d) setProducts(prev => [...prev, d].sort((a, b) => a.name.localeCompare(b.name)))
     }
-    setShowForm(false); setEditingId(null); setForm({ name: '', price: '', category_id: '' })
+    setShowForm(false); setEditingId(null); setForm({ name: '', price: '', category_id: '', barcode: '' })
     setSaving(false); flash()
   }
 
@@ -148,7 +149,7 @@ export function ProdutosConfig() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-800">Produtos</h2>
-          <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', price: '', category_id: '' }) }}
+          <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', price: '', category_id: '', barcode: '' }) }}
             className="flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600">
             <Plus size={15} /> Novo produto
           </button>
@@ -174,6 +175,11 @@ export function ProdutosConfig() {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Barcode size={12} /> Código de barras (opcional)</label>
+              <input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))}
+                placeholder="Bipe ou digite o código..." className="w-full border-2 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
             </div>
             <div className="flex gap-2">
               <button onClick={saveProduct} disabled={saving || !form.name.trim() || !form.price}
@@ -202,13 +208,16 @@ export function ProdutosConfig() {
                     style={{ borderColor: p.active ? '#f0fdf4' : '#f3f4f6' }}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{p.name}</p>
-                      <p className="text-sm text-green-600 font-bold">R$ {currency(p.price)}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-green-600 font-bold">R$ {currency(p.price)}</p>
+                        {p.barcode && <span className="flex items-center gap-1 text-xs text-gray-400"><Barcode size={11} />{p.barcode}</span>}
+                      </div>
                     </div>
                     <button onClick={() => toggleActive(p.id, p.active)}
                       className={`text-xs font-medium flex items-center gap-1 ${p.active ? 'text-green-500' : 'text-gray-400'}`}>
                       {p.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
-                    <button onClick={() => { setEditingId(p.id); setShowForm(true); setForm({ name: p.name, price: currency(p.price), category_id: p.category_id ?? '' }) }}
+                    <button onClick={() => { setEditingId(p.id); setShowForm(true); setForm({ name: p.name, price: currency(p.price), category_id: p.category_id ?? '', barcode: p.barcode ?? '' }) }}
                       className="p-1.5 text-gray-300 hover:text-green-500 rounded-lg transition-colors"><Pencil size={14} /></button>
                     <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={14} /></button>
                   </div>

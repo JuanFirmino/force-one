@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { Search, ShoppingCart, Plus, Minus, Check, User, UserX, RotateCcw, CheckCircle, X, MessageSquare, Lock, Tag, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { supabase, verifyPassword as edgeVerify } from '../../lib/supabase'
 import { useUnitStore } from '../../stores/unitStore'
+import { useBarcodeScanStore } from '../../stores/barcodeScanStore'
 import type { Customer, PaymentMethod } from '../../types'
 
 interface Category { id: string; name: string; sort_order: number }
-interface Product  { id: string; name: string; description?: string; price: number; category_id: string | null; active: boolean }
+interface Product  { id: string; name: string; description?: string; price: number; category_id: string | null; active: boolean; barcode?: string | null }
 interface CartItem  { product: Product; qty: number; obs: string[] }
 
 function currency(v: number) { return `R$ ${Number(v).toFixed(2).replace('.', ',')}` }
@@ -124,6 +125,7 @@ export function VendaModule() {
   const [error, setError]                   = useState('')
   const [activeCat, setActiveCat]           = useState<string>('all')
   const [productSearch, setProductSearch]   = useState('')
+  const [barcodeToast, setBarcodeToast]     = useState<{ name: string; found: boolean } | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -139,6 +141,22 @@ export function VendaModule() {
     }
     load()
   }, [])
+
+  // ── Barcode scanner: ao receber código, busca produto e adiciona ao carrinho ──
+  const { pendingBarcode, setPendingBarcode } = useBarcodeScanStore()
+  useEffect(() => {
+    if (!pendingBarcode || loading) return
+    const code = pendingBarcode
+    setPendingBarcode(null)
+    const found = products.find(p => p.barcode === code)
+    if (found) {
+      addToCart(found)
+      setBarcodeToast({ name: found.name, found: true })
+    } else {
+      setBarcodeToast({ name: code, found: false })
+    }
+    setTimeout(() => setBarcodeToast(null), 3000)
+  }, [pendingBarcode, products, loading])
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) { setSearchResults([]); return }
@@ -326,6 +344,16 @@ export function VendaModule() {
   return (
     <div className="px-4 py-6">
       <RejectionBanner alerts={rejectedAlerts} onAcknowledge={acknowledgeRejections} />
+
+      {/* ── Toast de barcode ── */}
+      {barcodeToast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold flex items-center gap-2 transition-all
+          ${barcodeToast.found ? 'bg-green-500' : 'bg-red-500'}`}>
+          {barcodeToast.found
+            ? <>✅ <span>{barcodeToast.name} adicionado ao carrinho!</span></>
+            : <>❌ <span>Produto não encontrado: {barcodeToast.name}</span></>}
+        </div>
+      )}
 
       {/* ── STEP 1 — Produtos ── */}
       {step === 1 && (

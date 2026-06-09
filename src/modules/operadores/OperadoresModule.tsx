@@ -151,10 +151,18 @@ export function OperadoresModule() {
 
   async function load() {
     setLoading(true)
-    const result = await dataService.from('customers').select('*').execute()
-    const sorted = (result.data ?? []).sort((a: any, b: any) => a.name.localeCompare(b.name))
-    setCustomers(sorted)
-    setLoading(false)
+    try {
+      const result = await dataService.from('customers').select('*').execute()
+      if (result.error) throw result.error
+      const sorted = (result.data ?? []).sort((a: any, b: any) =>
+        (a.name ?? '').localeCompare(b.name ?? '')
+      )
+      setCustomers(sorted)
+    } catch (e) {
+      console.error('Erro ao carregar clientes:', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const q = query.trim().toLowerCase()
@@ -582,7 +590,10 @@ export function OperadoresModule() {
             {showCam ? (
               <div className="flex flex-col items-center gap-3">
                 <Webcam ref={webcamRef} screenshotFormat="image/jpeg"
-                  className="rounded-xl w-64 h-48 object-cover bg-black" />
+                  className="rounded-xl w-64 h-48 object-cover bg-black"
+                  videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
+                  mirrored={false}
+                  onUserMediaError={(e) => console.error('Webcam error:', e)} />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => {
                     const src = webcamRef.current?.getScreenshot()

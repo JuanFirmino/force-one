@@ -9,8 +9,12 @@ import { VendaModule } from './modules/venda/VendaModule'
 import { CozinhaModule } from './modules/cozinha/CozinhaModule'
 import { EstoqueModule } from './modules/estoque/EstoqueModule'
 import { CaixaModule } from './modules/caixa/CaixaModule'
-import { UnitSelector } from './components/UnitSelector'
-import { verifyPassword, setSession } from './lib/supabase'
+import { UnitSelector, UnitSelectionScreen } from './components/UnitSelector'
+import { useUnitStore } from './stores/unitStore'
+import { useBarcodeScanStore } from './stores/barcodeScanStore'
+import { useBarcodeScanner } from './hooks/useBarcodeScanner'
+import { verifyPassword } from './lib/supabase'
+import type { Unit } from './types'
 
 // ── Rate limiter ────────────────────────────────────────────
 const MAX_ATTEMPTS = 5
@@ -61,20 +65,24 @@ function LoginScreen({ onLogin }: { onLogin: (r: LoginResult) => void }) {
 
     setLoading(false)
 
-    if (result.valid && result.token) {
-      setSession(result.token)
+    if (result.valid) {
       onLogin({
         permissions: result.permissions ?? {},
         name: result.name ?? 'Usuário',
       })
     } else {
-      const next = attempts + 1
-      setAttempts(next)
-      if (next >= MAX_ATTEMPTS) {
+      if (result.rateLimited) {
         setLockedUntil(Date.now() + LOCKOUT_MS)
-        setError(`Muitas tentativas. Aguarde 30 segundos.`)
+        setError('Muitas tentativas. Aguarde antes de tentar novamente.')
       } else {
-        setError(`Login ou senha incorretos. (${next}/${MAX_ATTEMPTS})`)
+        const next = attempts + 1
+        setAttempts(next)
+        if (next >= MAX_ATTEMPTS) {
+          setLockedUntil(Date.now() + LOCKOUT_MS)
+          setError(`Muitas tentativas. Aguarde 30 segundos.`)
+        } else {
+          setError(`Login ou senha incorretos. (${next}/${MAX_ATTEMPTS})`)
+        }
       }
       setPassword('')
     }
@@ -167,22 +175,36 @@ const ALL_TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function App() {
-  const [tab, setTab]       = useState<Tab>('acesso')
+  const [tab, setTab]          = useState<Tab>('acesso')
   const [session, setSession_] = useState<LoginResult | null>(null)
+  const { currentUnit, setCurrentUnit, clearUnit } = useUnitStore()
+  const { setPendingBarcode } = useBarcodeScanStore()
+
+  // Scanner global — ao bipar, vai para Venda e passa o código
+  useBarcodeScanner({
+    enabled: !!session && !!currentUnit,
+    onScan: (code) => {
+      setTab('venda')
+      setPendingBarcode(code)
+    },
+  })
 
   function handleLogin(result: LoginResult) {
     setSession_(result)
-    // Vai para a primeira aba permitida
     const first = ALL_TABS.find(t => result.permissions[t.id])
     if (first) setTab(first.id)
   }
 
   function handleLogout() {
+    clearUnit()
     setSession_(null)
     setTab('acesso')
   }
 
   if (!session) return <LoginScreen onLogin={handleLogin} />
+
+  // Após login, exige seleção de filial
+  if (!currentUnit) return <UnitSelectionScreen onSelect={(u: Unit) => setCurrentUnit(u)} />
 
   // Filtra abas conforme permissões (admin com todas as perms vê tudo)
   const hasAllPerms = Object.values(session.permissions).every(Boolean)

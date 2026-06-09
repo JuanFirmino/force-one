@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { Pencil, X, Check, ToggleLeft, ToggleRight, CreditCard, ChevronRight, Lock, Eye, EyeOff, MapPin, Plus, Trash2, Upload, ShoppingBag } from 'lucide-react'
+import { Pencil, X, Check, ToggleLeft, ToggleRight, CreditCard, ChevronRight, Lock, Eye, EyeOff, MapPin, Plus, Trash2, Upload } from 'lucide-react'
 import { ImportarClientes } from './ImportarClientes'
-import { ProdutosConfig } from './ProdutosConfig'
 import { UsuariosConfig } from './UsuariosConfig'
 import { dataService } from '../../lib/dataService'
 import { supabase, verifyPassword as edgeVerify } from '../../lib/supabase'
@@ -522,7 +521,7 @@ function FiliaisConfig() {
 }
 
 // ── Menu de Configurações ──────────────────────────────────
-type ConfigPage = null | 'pagamento' | 'filiais' | 'importar' | 'produtos' | 'usuarios'
+type ConfigPage = null | 'pagamento' | 'filiais' | 'importar' | 'usuarios'
 
 const MENU_ITEMS = [
   {
@@ -542,12 +541,6 @@ const MENU_ITEMS = [
     label: 'Pagamento',
     description: 'Preços de acesso e taxas por forma de pagamento',
     icon: <CreditCard size={22} className="text-green-500" />,
-  },
-  {
-    id: 'produtos' as ConfigPage,
-    label: 'Produtos',
-    description: 'Cadastre e gerencie produtos para venda no campo',
-    icon: <ShoppingBag size={22} className="text-green-500" />,
   },
   {
     id: 'importar' as ConfigPage,
@@ -571,18 +564,6 @@ export function ConfiguracoesModule() {
           <h1 className="text-2xl font-bold text-gray-800">Usuários</h1>
         </div>
         <UsuariosConfig />
-      </div>
-    )
-  }
-
-  if (page === 'produtos') {
-    return (
-      <div className="flex flex-col">
-        <div className="px-4 pt-6 pb-2 max-w-2xl mx-auto w-full">
-          <button onClick={() => setPage(null)} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm mb-2">← Configurações</button>
-          <h1 className="text-2xl font-bold text-gray-800">Produtos</h1>
-        </div>
-        <ProdutosConfig />
       </div>
     )
   }

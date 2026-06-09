@@ -9,21 +9,27 @@ export const supabase = createClient(url, key, {
 
 export const EDGE_URL = `${url}/functions/v1`
 
+export interface VerifyResult {
+  valid: boolean
+  permissions?: Record<string, boolean>
+  name?: string
+  rateLimited?: boolean
+  error?: string
+}
+
 /** Chama a Edge Function verify-password sem expor senhas ao client */
 export async function verifyPassword(payload: {
-  type: 'login' | 'config_password' | 'discount_password'
+  type: 'login' | 'config_password' | 'discount_password' | 'set_password' | 'kitchen_pin'
   password: string
   login?: string
-}): Promise<{ valid: boolean; token?: string; permissions?: Record<string, boolean>; name?: string }> {
+  key?: string
+  current?: string
+  newPassword?: string
+}): Promise<VerifyResult> {
   const res = await fetch(`${EDGE_URL}/verify-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: key },
     body: JSON.stringify(payload),
   })
   return res.json()
-}
-
-/** Ativa o JWT retornado pelo Edge Function em todas as chamadas ao Supabase */
-export function setSession(token: string) {
-  supabase.auth.setSession({ access_token: token, refresh_token: 'none' })
 }

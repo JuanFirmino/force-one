@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import Webcam from 'react-webcam'
 import { supabase } from '../../lib/supabase'
+import { ProdutosConfig } from '../configuracoes/ProdutosConfig'
 
 interface Category { id: string; name: string }
 interface Product {
@@ -34,7 +35,10 @@ function stockLabel(qty: number, min: number, unit: string) {
   return `${qty} ${unit}`
 }
 
+type InnerTab = 'estoque' | 'cadastro'
+
 export function EstoqueModule() {
+  const [innerTab, setInnerTab]     = useState<InnerTab>('estoque')
   const [products, setProducts]     = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading]       = useState(true)
@@ -157,6 +161,26 @@ export function EstoqueModule() {
   })
 
   const lowCount = products.filter(p => p.quantity <= p.min_stock).length
+
+  // ── CADASTRO TAB ─────────────────────────────────────────
+  if (innerTab === 'cadastro') return (
+    <div className="flex flex-col">
+      {/* Sub-nav */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex gap-1 max-w-2xl mx-auto">
+          <button onClick={() => setInnerTab('estoque')}
+            className="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+            Estoque
+          </button>
+          <button onClick={() => setInnerTab('cadastro')}
+            className="px-5 py-3 text-sm font-medium border-b-2 border-green-500 text-green-600 transition-colors">
+            Cadastro
+          </button>
+        </div>
+      </div>
+      <ProdutosConfig />
+    </div>
+  )
 
   // ── FORM ────────────────────────────────────────────────
   if (view === 'form') return (
@@ -410,7 +434,22 @@ export function EstoqueModule() {
 
   // ── LISTA ────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 px-4 py-6 max-w-2xl mx-auto">
+    <div className="flex flex-col">
+      {/* Sub-nav */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex gap-1 max-w-2xl mx-auto">
+          <button onClick={() => setInnerTab('estoque')}
+            className="px-5 py-3 text-sm font-medium border-b-2 border-green-500 text-green-600 transition-colors">
+            Estoque
+          </button>
+          <button onClick={() => setInnerTab('cadastro')}
+            className="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+            Cadastro
+          </button>
+        </div>
+      </div>
+
+    <div className="flex flex-col gap-4 px-4 py-6 max-w-2xl mx-auto w-full">
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -482,6 +521,7 @@ export function EstoqueModule() {
           ))}
         </div>
       )}
+    </div>
     </div>
   )
 }

@@ -103,7 +103,7 @@ export function Step1Identificacao({ onCustomerSelected }: Props) {
 
   async function handleSave() {
     setError('')
-    if (!form.name || !form.cpf || !form.whatsapp || !form.birth_date) {
+    if (!form.name || !form.cpf || !form.whatsapp) {
       setError('Preencha os campos obrigatórios.')
       return
     }
@@ -421,12 +421,14 @@ export function Step1Identificacao({ onCustomerSelected }: Props) {
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 className="rounded-xl w-64 h-48 object-cover bg-black"
-                onUserMediaError={() => setCamError(true)}
+                videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
+                mirrored={false}
+                onUserMediaError={(e) => { console.error('Webcam error:', e); setCamError(true) }}
               />
               {camError && (
                 <div className="flex items-center gap-2 text-orange-500 text-sm bg-orange-50 px-3 py-2 rounded-lg">
                   <AlertCircle size={16} />
-                  Câmera bloqueada. Verifique as permissões do navegador.
+                  Câmera indisponível. Verifique se outra aba ou programa está usando a câmera.
                 </div>
               )}
               <div className="flex gap-2">
@@ -475,7 +477,7 @@ export function Step1Identificacao({ onCustomerSelected }: Props) {
               className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400" />
           </div>
           <div>
-            <label className="text-sm text-gray-600 mb-1 block">Data de nascimento *</label>
+            <label className="text-sm text-gray-600 mb-1 block">Data de nascimento</label>
             <input type="date" value={form.birth_date}
               onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
               className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400" />
