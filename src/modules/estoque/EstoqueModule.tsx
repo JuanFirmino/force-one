@@ -1,16 +1,18 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Package, Plus, ArrowLeft, Camera, RotateCcw, Check, X,
-  TrendingUp, TrendingDown, SlidersHorizontal, AlertTriangle, History
+  TrendingUp, TrendingDown, SlidersHorizontal, AlertTriangle, History,
+  Search, Barcode, PackagePlus,
 } from 'lucide-react'
 import Webcam from 'react-webcam'
 import { supabase } from '../../lib/supabase'
 import { ProdutosConfig } from '../configuracoes/ProdutosConfig'
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'
 
 interface Category { id: string; name: string }
 interface Product {
   id: string; name: string; description?: string; price: number; quantity: number
-  min_stock: number; unit: string; photo_url?: string
+  min_stock: number; unit: string; photo_url?: string; barcode?: string | null
   category_id: string | null; active: boolean
   category?: { name: string }
 }
@@ -19,7 +21,7 @@ interface StockEntry {
   notes?: string; created_at: string
 }
 
-type View = 'list' | 'detail' | 'form' | 'entry'
+type View = 'list' | 'detail' | 'form' | 'entry' | 'busca-entrada'
 
 const UNITS = ['un', 'kg', 'g', 'L', 'ml', 'cx', 'pct', 'par']
 
@@ -64,6 +66,27 @@ export function EstoqueModule() {
   const [entryQty, setEntryQty]     = useState('')
   const [entryNotes, setEntryNotes] = useState('')
   const [entrySaving, setEntrySaving] = useState(false)
+
+  // busca entrada
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [barcodeFlash, setBarcodeFlash]   = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // scanner ativo somente na tela de busca-entrada
+  useBarcodeScanner({
+    enabled: view === 'busca-entrada',
+    onScan: (code) => {
+      const found = products.find(p => p.barcode === code)
+      if (found) {
+        setBarcodeFlash(null)
+        openEntryForProduct(found)
+      } else {
+        setBarcodeFlash(code)
+        setSearchQuery(code)
+        setTimeout(() => setBarcodeFlash(null), 3000)
+      }
+    },
+  })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -134,6 +157,17 @@ export function EstoqueModule() {
     await loadEntries(p.id)
   }
 
+  const [entryOrigin, setEntryOrigin] = useState<'detail' | 'busca'>('detail')
+
+  function openEntryForProduct(p: Product) {
+    setSelected(p)
+    setEntryType('entrada')
+    setEntryQty('')
+    setEntryNotes('')
+    setEntryOrigin('busca')
+    setView('entry')
+  }
+
   async function saveEntry() {
     if (!selected || !entryQty) return
     setEntrySaving(true)
@@ -151,7 +185,8 @@ export function EstoqueModule() {
     setSelected(updated)
     setProducts(prev => prev.map(p => p.id === selected.id ? updated : p))
     await loadEntries(selected.id)
-    setEntryQty(''); setEntryNotes(''); setEntrySaving(false); setView('detail')
+    setEntryQty(''); setEntryNotes(''); setEntrySaving(false)
+    setView(entryOrigin === 'busca' ? 'busca-entrada' : 'detail')
   }
 
   const filtered = products.filter(p => {
@@ -161,6 +196,136 @@ export function EstoqueModule() {
   })
 
   const lowCount = products.filter(p => p.quantity <= p.min_stock).length
+
+  // ── BUSCA ENTRADA ────────────────────────────────────────
+  if (view === 'busca-entrada') {
+    const query = searchQuery.trim().toLowerCase()
+    const results = query.length >= 1
+      ? products.filter(p =>
+          p.name.toLowerCase().includes(query) ||
+          (p.barcode ?? '').toLowerCase().includes(query)
+        )
+      : []
+
+    return (
+      <div className="flex flex-col">
+        {/* Sub-nav */}
+        <div className="bg-white border-b border-gray-200 px-6">
+          <div className="flex gap-1 max-w-2xl mx-auto">
+            <button onClick={() => { setView('list'); setSearchQuery('') }}
+              className="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+              Estoque
+            </button>
+            <button onClick={() => setInnerTab('cadastro')}
+              className="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+              Cadastro
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5 px-4 py-6 max-w-2xl mx-auto w-full">
+          {/* Cabeçalho */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setView('list'); setSearchQuery('') }}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <ArrowLeft size={20} className="text-gray-500" />
+            </button>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Entrada de mercadoria</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Busque pelo nome ou bipe o código de barras</p>
+            </div>
+          </div>
+
+          {/* Campo de busca */}
+          <div className="relative">
+            <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Nome do produto ou código de barras..."
+              className="w-full border-2 rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Toast código de barras não encontrado */}
+          {barcodeFlash && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-2xl">
+              <Barcode size={18} className="text-yellow-500 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-yellow-800">Código não encontrado</p>
+                <p className="text-xs text-yellow-600 font-mono mt-0.5">{barcodeFlash}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Dica de scanner */}
+          {!searchQuery && (
+            <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
+              <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center">
+                <Barcode size={30} className="text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Bipe o código de barras</p>
+                <p className="text-xs text-gray-400 mt-1">ou digite o nome do produto acima</p>
+              </div>
+            </div>
+          )}
+
+          {/* Resultados */}
+          {query.length >= 1 && results.length === 0 && (
+            <div className="text-center py-8 text-gray-400">
+              <Package size={32} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nenhum produto encontrado</p>
+              <p className="text-xs mt-1">Verifique o nome ou cadastre o produto na aba Cadastro</p>
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                {results.length} resultado{results.length !== 1 ? 's' : ''}
+              </p>
+              {results.map(p => (
+                <button key={p.id} onClick={() => { setSearchQuery(''); openEntryForProduct(p) }}
+                  className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-green-400 hover:shadow-md transition-all text-left">
+                  {p.photo_url
+                    ? <img src={p.photo_url} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                    : <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                        <Package size={20} className="text-gray-300" />
+                      </div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800">{p.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-gray-400">{p.category?.name ?? 'Sem categoria'}</p>
+                      {p.barcode && (
+                        <span className="text-xs text-gray-400 flex items-center gap-1 font-mono">
+                          <Barcode size={10} /> {p.barcode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${badge(p.quantity, p.min_stock)}`}>
+                      {stockLabel(p.quantity, p.min_stock, p.unit)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // ── CADASTRO TAB ─────────────────────────────────────────
   if (innerTab === 'cadastro') return (
@@ -280,7 +445,11 @@ export function EstoqueModule() {
   if (view === 'entry' && selected) return (
     <div className="flex flex-col gap-5 px-4 py-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3">
-        <button onClick={() => setView('detail')} className="p-2 hover:bg-gray-100 rounded-xl"><ArrowLeft size={20} className="text-gray-500" /></button>
+        <button
+          onClick={() => entryOrigin === 'busca' ? setView('busca-entrada') : setView('detail')}
+          className="p-2 hover:bg-gray-100 rounded-xl">
+          <ArrowLeft size={20} className="text-gray-500" />
+        </button>
         <div>
           <h2 className="text-xl font-bold text-gray-800">Movimentação</h2>
           <p className="text-sm text-gray-400">{selected.name} · estoque atual: <strong>{selected.quantity} {selected.unit}</strong></p>
@@ -378,17 +547,17 @@ export function EstoqueModule() {
 
       {/* Botões de movimentação */}
       <div className="grid grid-cols-3 gap-2">
-        <button onClick={() => { setEntryType('entrada'); setEntryQty(''); setEntryNotes(''); setView('entry') }}
+        <button onClick={() => { setEntryType('entrada'); setEntryQty(''); setEntryNotes(''); setEntryOrigin('detail'); setView('entry') }}
           className="flex flex-col items-center gap-1.5 py-4 bg-green-50 border-2 border-green-200 rounded-2xl hover:bg-green-100 transition-colors">
           <TrendingUp size={22} className="text-green-600" />
           <span className="text-xs font-bold text-green-700">Entrada</span>
         </button>
-        <button onClick={() => { setEntryType('saida'); setEntryQty(''); setEntryNotes(''); setView('entry') }}
+        <button onClick={() => { setEntryType('saida'); setEntryQty(''); setEntryNotes(''); setEntryOrigin('detail'); setView('entry') }}
           className="flex flex-col items-center gap-1.5 py-4 bg-red-50 border-2 border-red-200 rounded-2xl hover:bg-red-100 transition-colors">
           <TrendingDown size={22} className="text-red-500" />
           <span className="text-xs font-bold text-red-600">Saída</span>
         </button>
-        <button onClick={() => { setEntryType('ajuste'); setEntryQty(''); setEntryNotes(''); setView('entry') }}
+        <button onClick={() => { setEntryType('ajuste'); setEntryQty(''); setEntryNotes(''); setEntryOrigin('detail'); setView('entry') }}
           className="flex flex-col items-center gap-1.5 py-4 bg-blue-50 border-2 border-blue-200 rounded-2xl hover:bg-blue-100 transition-colors">
           <SlidersHorizontal size={22} className="text-blue-500" />
           <span className="text-xs font-bold text-blue-600">Ajuste</span>
@@ -457,9 +626,9 @@ export function EstoqueModule() {
           </h2>
           <p className="text-sm text-gray-400 mt-0.5">{products.length} produto{products.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600">
-          <Plus size={16} /> Novo
+        <button onClick={() => { setSearchQuery(''); setView('busca-entrada') }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
+          <PackagePlus size={16} /> Entrada
         </button>
       </div>
 
