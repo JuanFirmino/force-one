@@ -519,7 +519,7 @@ export function VendaModule() {
                       type="text"
                       value={productSearch}
                       onChange={e => { setProductSearch(e.target.value); setActiveCat('all') }}
-                      placeholder="Buscar produto..."
+                      placeholder="Buscar por nome ou código de barras..."
                       className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400 bg-gray-50 focus:bg-white transition-colors"
                     />
                     {productSearch && (
@@ -561,7 +561,9 @@ export function VendaModule() {
                     .filter(p => {
                       const matchCat = activeCat === 'all' ? true : activeCat === 'sem-cat' ? !p.category_id : p.category_id === activeCat
                       const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-                      const matchSearch = productSearch.trim() === '' ? true : normalize(p.name).includes(normalize(productSearch))
+                      const matchSearch = productSearch.trim() === '' ? true :
+                        normalize(p.name).includes(normalize(productSearch)) ||
+                        (p.barcode ?? '').toLowerCase().includes(productSearch.trim().toLowerCase())
                       return matchCat && matchSearch
                     })
                     .map(p => {
