@@ -628,7 +628,7 @@ export function EstoqueModule() {
         </div>
         <button onClick={() => { setSearchQuery(''); setView('busca-entrada') }}
           className="flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
-          <PackagePlus size={16} /> Entrada
+          <PackagePlus size={16} /> Entrada de estoque
         </button>
       </div>
 
