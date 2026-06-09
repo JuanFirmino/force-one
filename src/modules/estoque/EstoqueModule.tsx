@@ -199,10 +199,11 @@ export function EstoqueModule() {
 
   // ── BUSCA ENTRADA ────────────────────────────────────────
   if (view === 'busca-entrada') {
-    const query = searchQuery.trim().toLowerCase()
+    const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const query = normalize(searchQuery.trim())
     const results = query.length >= 1
       ? products.filter(p =>
-          p.name.toLowerCase().includes(query) ||
+          normalize(p.name).includes(query) ||
           (p.barcode ?? '').toLowerCase().includes(query)
         )
       : []
