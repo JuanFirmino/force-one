@@ -115,10 +115,14 @@ function NinjaDashboard({ onLogout }: { onLogout: () => void }) {
   // carrega filiais uma vez (para o seletor)
   useEffect(() => {
     supabase.from('units').select('id, name').order('name').then(({ data }) => {
-      setUnits((data ?? []).map((u: any) => ({
+      const opts = (data ?? []).map((u: any) => ({
         id: u.id,
         name: u.name.replace('Force One - ', '').replace('Force One', '').trim() || u.name,
-      })))
+      }))
+      setUnits(opts)
+      // Mooca selecionada por padrão, se existir
+      const mooca = opts.find((u: UnitOption) => u.name.toLowerCase().includes('mooca'))
+      if (mooca) setUnitFilter(mooca.id)
     })
   }, [])
 
