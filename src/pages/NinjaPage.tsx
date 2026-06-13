@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Eye, EyeOff, Lock, Users, RefreshCw, LogOut, Target } from 'lucide-react'
+import { Eye, EyeOff, Lock, Users, RefreshCw, LogOut, Target, MapPin } from 'lucide-react'
 import { verifyPassword } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 
@@ -169,45 +169,55 @@ function NinjaDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center border border-gray-700">
-            <Target size={16} className="text-green-400" />
+      <header className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-800 rounded-lg flex items-center justify-center border border-gray-700 shrink-0">
+              <Target size={16} className="text-green-400" />
+            </div>
+            <div>
+              <h1 className="text-base sm:text-lg font-bold text-white leading-tight">Ninja</h1>
+              {lastUpdate && (
+                <p className="text-[11px] sm:text-xs text-gray-500">
+                  Atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white">Ninja</h1>
-            {lastUpdate && (
-              <p className="text-xs text-gray-500">
-                Atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button onClick={load} disabled={loading}
+              className="p-2 text-gray-500 hover:text-green-400 hover:bg-gray-800 rounded-xl transition-colors disabled:opacity-40">
+              <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button onClick={onLogout}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-sm text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-xl transition-colors">
+              <LogOut size={15} /> <span className="hidden sm:inline">Sair</span>
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={load} disabled={loading}
-            className="p-2 text-gray-500 hover:text-green-400 hover:bg-gray-800 rounded-xl transition-colors disabled:opacity-40">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button onClick={onLogout}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-xl transition-colors">
-            <LogOut size={14} /> Sair
-          </button>
         </div>
       </header>
 
-      <div className="px-4 py-6 max-w-3xl mx-auto flex flex-col gap-6">
+      <div className="px-4 sm:px-6 py-5 sm:py-7 max-w-6xl mx-auto flex flex-col gap-5 sm:gap-6">
 
-        {/* Card total */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-green-500/10 border border-green-500/20 rounded-2xl flex items-center justify-center shrink-0">
-            <Users size={22} className="text-green-400" />
+        {/* Cards de resumo */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 sm:gap-4">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 bg-green-500/10 border border-green-500/20 rounded-2xl flex items-center justify-center shrink-0">
+              <Users size={20} className="text-green-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-black text-white leading-none">{totalPlayers}</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1 leading-tight">jogador{totalPlayers !== 1 ? 'es' : ''} em campo</p>
+            </div>
           </div>
-          <div>
-            <p className="text-3xl font-black text-white">{totalPlayers}</p>
-            <p className="text-sm text-gray-400">jogador{totalPlayers !== 1 ? 'es' : ''} em campo hoje</p>
-          </div>
-          <div className="ml-auto text-right">
-            <p className="text-sm text-gray-500">{fields.length} campo{fields.length !== 1 ? 's' : ''} ativo{fields.length !== 1 ? 's' : ''}</p>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 sm:gap-4">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center shrink-0">
+              <MapPin size={20} className="text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-black text-white leading-none">{fields.length}</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1 leading-tight">campo{fields.length !== 1 ? 's' : ''} ativo{fields.length !== 1 ? 's' : ''}</p>
+            </div>
           </div>
         </div>
 
@@ -227,36 +237,38 @@ function NinjaDashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {/* Por campo */}
-        {fields.map(field => (
-          <div key={field.unit_id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            {/* Header do campo */}
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-base font-bold text-white">{field.unit_name}</h2>
-              <span className="flex items-center gap-1.5 text-sm font-semibold text-green-400 bg-green-400/10 px-3 py-1 rounded-full">
-                <Users size={13} /> {field.players.length}
-              </span>
-            </div>
+        {/* Por campo — grid responsivo */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+          {fields.map(field => (
+            <div key={field.unit_id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+              {/* Header do campo */}
+              <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
+                <h2 className="text-sm sm:text-base font-bold text-white truncate pr-2">{field.unit_name}</h2>
+                <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-green-400 bg-green-400/10 px-2.5 sm:px-3 py-1 rounded-full shrink-0">
+                  <Users size={13} /> {field.players.length}
+                </span>
+              </div>
 
-            {/* Lista de jogadores */}
-            <div className="divide-y divide-gray-800/60">
-              {field.players.map((p, idx) => (
-                <div key={p.id} className="px-5 py-3 flex items-center gap-3">
-                  {/* Avatar */}
-                  {p.photo_url ? (
-                    <img src={p.photo_url} className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-gray-700" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center shrink-0 text-xs font-bold text-gray-400">
-                      {initials(p.name)}
-                    </div>
-                  )}
-                  <span className="text-sm font-medium text-gray-200 flex-1">{p.name}</span>
-                  <span className="text-xs text-gray-600 shrink-0">#{idx + 1}</span>
-                </div>
-              ))}
+              {/* Lista de jogadores */}
+              <div className="divide-y divide-gray-800/60 max-h-[420px] overflow-y-auto">
+                {field.players.map((p, idx) => (
+                  <div key={p.id} className="px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-3 hover:bg-gray-800/40 transition-colors">
+                    {/* Avatar */}
+                    {p.photo_url ? (
+                      <img src={p.photo_url} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shrink-0 ring-1 ring-gray-700" />
+                    ) : (
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center shrink-0 text-xs font-bold text-gray-400">
+                        {initials(p.name)}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-gray-200 flex-1 truncate">{p.name}</span>
+                    <span className="text-xs text-gray-600 shrink-0 tabular-nums">#{idx + 1}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
