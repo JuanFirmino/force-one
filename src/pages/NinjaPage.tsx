@@ -36,7 +36,7 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
     if (!pwd.trim()) return
     setLoading(true)
     setError('')
-    const result = await verifyPassword({ type: 'config_password', password: pwd.trim() })
+    const result = await verifyPassword({ type: 'ninja_password', password: pwd.trim() })
     setLoading(false)
     if (result.valid) {
       sessionStorage.setItem(SESSION_KEY, '1')

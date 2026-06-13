@@ -19,7 +19,7 @@ export interface VerifyResult {
 
 /** Chama a Edge Function verify-password sem expor senhas ao client */
 export async function verifyPassword(payload: {
-  type: 'login' | 'config_password' | 'discount_password' | 'set_password' | 'kitchen_pin'
+  type: 'login' | 'config_password' | 'discount_password' | 'set_password' | 'kitchen_pin' | 'ninja_password'
   password: string
   login?: string
   key?: string
